@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQLHunter - SQL 注入检测工具</title>
+    <meta name="description" content="SQLHunter - 简洁高效的 SQL 注入检测与利用工具">
+    <link rel="icon" type="image/png" href="src-tauri/icons/32x32.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0d1117;
+            --bg-secondary: #161b22;
+            --surface: #21262d;
+            --border: #30363d;
+            --text: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent: #58a6ff;
+            --accent-hover: #79c0ff;
+            --logo-brand-color: #58a6ff;
+            --logo-text-color: #e6edf3;
+            --glow-primary: rgba(88, 166, 255, 0.4);
+            --glow-secondary: rgba(0, 212, 255, 0.3);
+            --neon-cyan: #00d4ff;
+            --neon-purple: #bd00ff;
+        }
+
+        [data-theme="light"] {
+            --bg: #ffffff;
+            --bg-secondary: #f6f8fa;
+            --surface: #ffffff;
+            --border: #d0d7de;
+            --text: #1f2328;
+            --text-secondary: #656d76;
+            --accent: #0969da;
+            --accent-hover: #0550ae;
+            --logo-brand-color: #0969da;
+            --logo-text-color: #1f2328;
+            --glow-primary: rgba(9, 105, 218, 0.3);
+            --glow-secondary: rgba(9, 105, 218, 0.2);
+        }
+
+        /* 动画关键帧 */
+        @keyframes pulse-glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 20px var(--glow-primary), 0 0 40px var(--glow-secondary);
+            }
+
+            50% {
+                box-shadow: 0 0 30px var(--glow-primary), 0 0 60px var(--glow-secondary);
+            }
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        @keyframes scanline {
+            0% {
+                transform: translateY(-100%);
+            }
+
+            100% {
+                transform: translateY(100vh);
+            }
+        }
+
+        @keyframes gradient-shift {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        @keyframes particle-float {
+
+            0%,
+            100% {
+                transform: translate(0, 0) rotate(0deg);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate(100px, -100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        @keyframes text-shimmer {
+            0% {
+                background-position: -200% center;
+            }
+
+            100% {
+                background-position: 200% center;
+            }
+        }
+
+        @keyframes border-glow {
+
+            0%,
+            100% {
+                border-color: var(--accent);
+            }
+
+            50% {
+                border-color: var(--neon-cyan);
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            transition: background 0.3s, color 0.3s;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* 粒子背景容器 */
+        .particles-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: particle-float 15s linear infinite;
+            opacity: 0;
+        }
+
+        /* 扫描线效果 */
+        .scanline-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+            animation: scanline 8s linear infinite;
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 0.3;
+        }
+
+        /* 网格背景 */
+        .grid-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(88, 166, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(88, 166, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        [data-theme="light"] .grid-bg {
+            background-image:
+                linear-gradient(rgba(9, 105, 218, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(9, 105, 218, 0.05) 1px, transparent 1px);
+        }
+
+        [data-theme="light"] .scanline-overlay {
+            opacity: 0.1;
+        }
+
+        [data-theme="light"] .particle {
+            background: var(--accent);
+        }
+
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 100;
+            transition: background 0.3s;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .logo img {
+            width: 32px;
+            height: 32px;
+        }
+
+        .nav {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .nav a {
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .nav a:hover {
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .icon-btn {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: var(--surface);
+            color: var(--text);
+            border-color: var(--text-secondary);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--accent), var(--neon-cyan));
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px var(--glow-primary);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, var(--accent-hover), var(--accent));
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px var(--glow-primary);
+            text-decoration: none;
+        }
+
+        /* Hero */
+        .hero {
+            padding: 140px 24px 80px;
+            max-width: 960px;
+            margin: 0 auto;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero h1 {
+            font-size: 48px;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, var(--text) 0%, var(--accent) 50%, var(--neon-cyan) 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: text-shimmer 4s ease-in-out infinite;
+        }
+
+        .hero .subtitle {
+            font-size: 20px;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            max-width: 640px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-bottom: 64px;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .btn-outline:hover {
+            background: var(--surface);
+            border-color: var(--text-secondary);
+        }
+
+        .hero-image {
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid transparent;
+            background: linear-gradient(var(--bg), var(--bg)) padding-box,
+                linear-gradient(135deg, var(--accent), var(--neon-cyan), var(--neon-purple)) border-box;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3), 0 0 40px var(--glow-secondary);
+            animation: pulse-glow 4s ease-in-out infinite;
+            transition: transform 0.3s ease;
+        }
+
+        .hero-image:hover {
+            transform: scale(1.02);
+        }
+
+        .hero-image img {
+            width: 100%;
+            display: block;
+        }
+
+        /* Section */
+        .section {
+            padding: 80px 24px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .section-header h2 {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .section-header p {
+            color: var(--text-secondary);
+            font-size: 18px;
+            max-width: 640px;
+            margin: 0 auto;
+        }
+
+        /* Features */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+        }
+
+        .feature {
+            padding: 32px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--accent), var(--neon-cyan), transparent);
+            transform: translateX(-100%);
+            transition: transform 0.5s ease;
+        }
+
+        .feature:hover {
+            border-color: var(--accent);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px var(--glow-secondary);
+        }
+
+        .feature:hover::before {
+            transform: translateX(100%);
+        }
+
+        .feature h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--accent);
+        }
+
+
+        .feature h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .feature p {
+            font-size: 15px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .feature ul {
+            margin-top: 16px;
+            padding-left: 20px;
+        }
+
+        .feature li {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        /* Screenshots */
+        .screenshot-row {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .screenshot-card {
+            flex: 1;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .screenshot-card img {
+            width: 100%;
+            display: block;
+        }
+
+        .screenshot-info {
+            padding: 20px;
+        }
+
+        .screenshot-info h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .screenshot-info p {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* Download */
+        .download-section {
+            text-align: center;
+            padding: 80px 24px;
+            background: var(--bg-secondary);
+        }
+
+        .download-section h2 {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .download-section>p {
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            font-size: 18px;
+        }
+
+        .download-grid {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .download-card {
+            padding: 28px 40px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            min-width: 180px;
+            transition: all 0.2s;
+        }
+
+        .download-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            text-decoration: none;
+        }
+
+        .download-card h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        .download-card p {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* Footer */
+        .footer {
+            padding: 40px 24px;
+            text-align: center;
+            border-top: 1px solid var(--border);
+        }
+
+        .footer p {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .features {
+                grid-template-columns: 1fr;
+            }
+
+            .screenshot-row {
+                flex-direction: column;
+            }
+
+            .nav {
+                display: none;
+            }
+
+            .hero h1 {
+                font-size: 32px;
+            }
+
+            .hero .subtitle {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 科技特效层 -->
+    <div class="grid-bg"></div>
+    <div class="particles-bg" id="particles"></div>
+    <div class="scanline-overlay"></div>
+
+    <header class="header">
+        <div class="logo">
+            <img src="logo.png" alt="SQLHunter" style="height: 72px; width: auto;">
+        </div>
+        <nav class="nav">
+            <a href="#features" data-i18n="nav.features">功能特性</a>
+            <a href="#screenshots" data-i18n="nav.screenshots">界面预览</a>
+            <a href="guide.html" class="doc-link" data-i18n="nav.docs">使用文档</a>
+            <a href="#download" data-i18n="nav.download">下载</a>
+        </nav>
+        <div class="header-actions">
+            <button class="icon-btn" id="themeToggle" title="切换主题">☀</button>
+            <button class="icon-btn" id="langToggle" title="切换语言">EN</button>
+            <a href="https://github.com/Robot0P/SQLHunter/releases" class="btn" data-i18n="nav.download">下载</a>
+        </div>
+    </header>
+
+    <section class="hero">
+        <h1 data-i18n="hero.title">简洁高效的 SQL 注入检测工具</h1>
+        <p class="subtitle" data-i18n="hero.subtitle">
+            基于 sqlmap 打造的现代化图形界面，集成智能代理池、Tor 匿名网络、AI 智能分析。
+            支持批量扫描、任务队列、多主题切换，让 SQL 注入检测变得简单而强大。
+        </p>
+        <div class="hero-actions">
+            <a href="https://github.com/Robot0P/SQLHunter/releases" class="btn" data-i18n="hero.download">立即下载</a>
+            <a href="guide.html" class="btn btn-outline doc-link" data-i18n="hero.docs">查看文档</a>
+        </div>
+        <div class="hero-image">
+            <img src="screenshots/main-interface.png" alt="SQLHunter">
+        </div>
+    </section>
+
+    <section id="features" class="section">
+        <div class="section-header">
+            <h2 data-i18n="features.title">功能特性</h2>
+            <p data-i18n="features.subtitle">专为安全研究人员和渗透测试工程师设计的一站式 SQL 注入检测解决方案</p>
+        </div>
+        <div class="features">
+            <div class="feature">
+                <h3 data-i18n="features.scan.title">智能扫描引擎</h3>
+                <p data-i18n="features.scan.desc">基于 sqlmap 的强大检测能力，提供直观的图形化操作界面。支持多种注入技术，自动识别数据库类型和后端环境。</p>
+                <ul>
+                    <li data-i18n="features.scan.item1">支持 Boolean、Error、Union、Stacked、Time-based 等多种注入技术</li>
+                    <li data-i18n="features.scan.item2">自动识别 MySQL、PostgreSQL、Oracle、MSSQL 等主流数据库</li>
+                    <li data-i18n="features.scan.item3">批量目标导入，任务队列自动管理</li>
+                </ul>
+            </div>
+            <div class="feature">
+                <h3 data-i18n="features.proxy.title">智能代理池</h3>
+                <p data-i18n="features.proxy.desc">内置代理池管理系统，支持从多个来源自动获取代理，定期健康检查，自动剔除失效代理。</p>
+                <ul>
+                    <li data-i18n="features.proxy.item1">支持 HTTP/HTTPS/SOCKS5 多种代理协议</li>
+                    <li data-i18n="features.proxy.item2">自动轮换策略，避免被目标封禁</li>
+                    <li data-i18n="features.proxy.item3">一键集成 Tor 匿名网络，实时显示链路节点</li>
+                </ul>
+            </div>
+            <div class="feature">
+                <h3 data-i18n="features.config.title">可视化配置</h3>
+                <p data-i18n="features.config.desc">告别复杂的命令行参数，所有配置通过直观的界面完成。内置多种扫描预设，一键切换扫描策略。</p>
+                <ul>
+                    <li data-i18n="features.config.item1">快速扫描、深度扫描、WAF 绕过等预设模式</li>
+                    <li data-i18n="features.config.item2">自定义预设保存，常用配置一键加载</li>
+                    <li data-i18n="features.config.item3">实时命令预览，随时查看生成的 sqlmap 命令</li>
+                </ul>
+            </div>
+            <div class="feature">
+                <h3 data-i18n="features.analysis.title">结果分析</h3>
+                <p data-i18n="features.analysis.desc">扫描结果智能解析，可视化展示发现的漏洞信息。支持 AI 辅助分析，自动生成漏洞评估报告。</p>
+                <ul>
+                    <li data-i18n="features.analysis.item1">数据库结构树可视化展示</li>
+                    <li data-i18n="features.analysis.item2">AI 智能分析扫描结果，提供修复建议</li>
+                    <li data-i18n="features.analysis.item3">扫描历史记录，随时回顾和对比</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section id="screenshots" class="section">
+        <div class="section-header">
+            <h2 data-i18n="screenshots.title">界面预览</h2>
+            <p data-i18n="screenshots.subtitle">现代化设计，8 款精美主题，支持中英双语界面</p>
+        </div>
+        <div class="screenshot-row">
+            <div class="screenshot-card">
+                <img src="screenshots/main-interface.png" alt="Main Interface">
+                <div class="screenshot-info">
+                    <h3 data-i18n="screenshots.main.title">主控制台</h3>
+                    <p data-i18n="screenshots.main.desc">简洁的扫描控制界面，左侧配置面板，中央实时输出，右侧结果展示。一目了然的布局设计。</p>
+                </div>
+            </div>
+            <div class="screenshot-card">
+                <img src="screenshots/proxy-pool.png" alt="Proxy Pool">
+                <div class="screenshot-info">
+                    <h3 data-i18n="screenshots.proxy.title">智能代理池</h3>
+                    <p data-i18n="screenshots.proxy.desc">代理管理、健康检查、Tor 网络集成。实时显示当前 IP、代理状态和 Tor 链路节点信息。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="download" class="download-section">
+        <h2 data-i18n="download.title">下载 SQLHunter</h2>
+        <p data-i18n="download.subtitle">支持 Windows、macOS、Linux 三大平台</p>
+        <div class="download-grid">
+            <a href="https://github.com/Robot0P/SQLHunter/releases" class="download-card">
+                <h3>Windows</h3>
+                <p>Windows 10+</p>
+            </a>
+            <a href="https://github.com/Robot0P/SQLHunter/releases" class="download-card">
+                <h3>macOS</h3>
+                <p>macOS 10.13+</p>
+            </a>
+            <a href="https://github.com/Robot0P/SQLHunter/releases" class="download-card">
+                <h3>Linux</h3>
+                <p>Ubuntu 18.04+</p>
+            </a>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <p>
+            SQLHunter · <a href="https://github.com/Robot0P/SQLHunter">GitHub</a> · <a href="guide.html"
+                class="doc-link" data-i18n="footer.docs">使用文档</a> · <a
+                href="https://github.com/Robot0P/SQLHunter/issues" data-i18n="footer.feedback">反馈问题</a>
+        </p>
+    </footer>
+
+    <script>
+        // i18n translations
+        const i18n = {
+            zh: {
+                'nav.features': '功能特性',
+                'nav.screenshots': '界面预览',
+                'nav.docs': '使用文档',
+                'nav.download': '下载',
+                'hero.title': '简洁高效的 SQL 注入检测工具',
+                'hero.subtitle': '基于 sqlmap 打造的现代化图形界面，集成智能代理池、Tor 匿名网络、AI 智能分析。支持批量扫描、任务队列、多主题切换，让 SQL 注入检测变得简单而强大。',
+                'hero.download': '立即下载',
+                'hero.docs': '查看文档',
+                'features.title': '功能特性',
+                'features.subtitle': '专为安全研究人员和渗透测试工程师设计的一站式 SQL 注入检测解决方案',
+                'features.scan.title': '智能扫描引擎',
+                'features.scan.desc': '基于 sqlmap 的强大检测能力，提供直观的图形化操作界面。支持多种注入技术，自动识别数据库类型和后端环境。',
+                'features.scan.item1': '支持 Boolean、Error、Union、Stacked、Time-based 等多种注入技术',
+                'features.scan.item2': '自动识别 MySQL、PostgreSQL、Oracle、MSSQL 等主流数据库',
+                'features.scan.item3': '批量目标导入，任务队列自动管理',
+                'features.proxy.title': '智能代理池',
+                'features.proxy.desc': '内置代理池管理系统，支持从多个来源自动获取代理，定期健康检查，自动剔除失效代理。',
+                'features.proxy.item1': '支持 HTTP/HTTPS/SOCKS5 多种代理协议',
+                'features.proxy.item2': '自动轮换策略，避免被目标封禁',
+                'features.proxy.item3': '一键集成 Tor 匿名网络，实时显示链路节点',
+                'features.config.title': '可视化配置',
+                'features.config.desc': '告别复杂的命令行参数，所有配置通过直观的界面完成。内置多种扫描预设，一键切换扫描策略。',
+                'features.config.item1': '快速扫描、深度扫描、WAF 绕过等预设模式',
+                'features.config.item2': '自定义预设保存，常用配置一键加载',
+                'features.config.item3': '实时命令预览，随时查看生成的 sqlmap 命令',
+                'features.analysis.title': '结果分析',
+                'features.analysis.desc': '扫描结果智能解析，可视化展示发现的漏洞信息。支持 AI 辅助分析，自动生成漏洞评估报告。',
+                'features.analysis.item1': '数据库结构树可视化展示',
+                'features.analysis.item2': 'AI 智能分析扫描结果，提供修复建议',
+                'features.analysis.item3': '扫描历史记录，随时回顾和对比',
+                'screenshots.title': '界面预览',
+                'screenshots.subtitle': '现代化设计，8 款精美主题，支持中英双语界面',
+                'screenshots.main.title': '主控制台',
+                'screenshots.main.desc': '简洁的扫描控制界面，左侧配置面板，中央实时输出，右侧结果展示。一目了然的布局设计。',
+                'screenshots.proxy.title': '智能代理池',
+                'screenshots.proxy.desc': '代理管理、健康检查、Tor 网络集成。实时显示当前 IP、代理状态和 Tor 链路节点信息。',
+                'download.title': '下载 SQLHunter',
+                'download.subtitle': '支持 Windows、macOS、Linux 三大平台',
+                'footer.docs': '使用文档',
+                'footer.feedback': '反馈问题'
+            },
+            en: {
+                'nav.features': 'Features',
+                'nav.screenshots': 'Screenshots',
+                'nav.docs': 'Documentation',
+                'nav.download': 'Download',
+                'hero.title': 'Efficient SQL Injection Detection Tool',
+                'hero.subtitle': 'A modern GUI for sqlmap with smart proxy pool, Tor integration, and AI analysis. Batch scanning, task queue, and theme customization make SQL injection testing simple yet powerful.',
+                'hero.download': 'Download Now',
+                'hero.docs': 'Documentation',
+                'features.title': 'Features',
+                'features.subtitle': 'A comprehensive SQL injection detection solution designed for security researchers and penetration testers',
+                'features.scan.title': 'Smart Scanning Engine',
+                'features.scan.desc': 'Powered by sqlmap with an intuitive graphical interface. Supports multiple injection techniques and auto-detects database types.',
+                'features.scan.item1': 'Boolean, Error, Union, Stacked, Time-based injection techniques',
+                'features.scan.item2': 'Auto-detect MySQL, PostgreSQL, Oracle, MSSQL and more',
+                'features.scan.item3': 'Batch target import with automatic task queue management',
+                'features.proxy.title': 'Smart Proxy Pool',
+                'features.proxy.desc': 'Built-in proxy management with automatic fetching from multiple sources, health checks, and dead proxy removal.',
+                'features.proxy.item1': 'HTTP/HTTPS/SOCKS5 proxy protocols supported',
+                'features.proxy.item2': 'Auto-rotation to avoid target blocking',
+                'features.proxy.item3': 'One-click Tor integration with real-time circuit display',
+                'features.config.title': 'Visual Configuration',
+                'features.config.desc': 'No more complex command-line arguments. All settings through an intuitive interface with built-in scan presets.',
+                'features.config.item1': 'Quick Scan, Deep Scan, WAF Bypass presets',
+                'features.config.item2': 'Save custom presets for one-click loading',
+                'features.config.item3': 'Real-time command preview',
+                'features.analysis.title': 'Result Analysis',
+                'features.analysis.desc': 'Smart parsing of scan results with visual vulnerability display. AI-assisted analysis with automated assessment reports.',
+                'features.analysis.item1': 'Visual database structure tree',
+                'features.analysis.item2': 'AI analysis with remediation suggestions',
+                'features.analysis.item3': 'Scan history for review and comparison',
+                'screenshots.title': 'Screenshots',
+                'screenshots.subtitle': 'Modern design with 8 themes and bilingual interface',
+                'screenshots.main.title': 'Main Console',
+                'screenshots.main.desc': 'Clean scanning interface with config panel on the left, real-time output in the center, and results on the right.',
+                'screenshots.proxy.title': 'Smart Proxy Pool',
+                'screenshots.proxy.desc': 'Proxy management, health checks, and Tor integration. Real-time IP, proxy status, and Tor circuit node display.',
+                'download.title': 'Download SQLHunter',
+                'download.subtitle': 'Available for Windows, macOS, and Linux',
+                'footer.docs': 'Documentation',
+                'footer.feedback': 'Report Issues'
+            }
+        };
+
+        let currentLang = localStorage.getItem('lang') || 'zh';
+        let currentTheme = localStorage.getItem('theme') || 'dark';
+
+        // Apply saved theme
+        if (currentTheme === 'light') {
+            document.body.setAttribute('data-theme', 'light');
+            document.getElementById('themeToggle').textContent = '☾';
+        }
+
+        // Apply saved language
+        if (currentLang === 'en') {
+            document.getElementById('langToggle').textContent = '中';
+            updateLanguage();
+        }
+
+        function updateLanguage() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[currentLang][key]) {
+                    el.textContent = i18n[currentLang][key];
+                }
+            });
+            document.documentElement.lang = currentLang === 'zh' ? 'zh-CN' : 'en';
+            // Update doc links based on language
+            const docHref = currentLang === 'en' ? 'guide-en.html' : 'guide.html';
+            document.querySelectorAll('.doc-link').forEach(link => {
+                link.href = docHref;
+            });
+        }
+
+        // Theme toggle
+        document.getElementById('themeToggle').addEventListener('click', function () {
+            currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.body.setAttribute('data-theme', currentTheme === 'light' ? 'light' : '');
+            this.textContent = currentTheme === 'dark' ? '☀' : '☾';
+            localStorage.setItem('theme', currentTheme);
+        });
+
+        // Language toggle
+        document.getElementById('langToggle').addEventListener('click', function () {
+            currentLang = currentLang === 'zh' ? 'en' : 'zh';
+            this.textContent = currentLang === 'zh' ? 'EN' : '中';
+            updateLanguage();
+            localStorage.setItem('lang', currentLang);
+        });
+
+        // Smooth scroll
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // 粒子效果生成
+        function createParticles() {
+            const container = document.getElementById('particles');
+            const particleCount = 30;
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 15 + 's';
+                particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+                particle.style.width = (Math.random() * 4 + 2) + 'px';
+                particle.style.height = particle.style.width;
+                container.appendChild(particle);
+            }
+        }
+
+        createParticles();
+    </script>
+</body>
+
+</html>

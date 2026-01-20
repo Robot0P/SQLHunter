@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQLHunter 使用文档</title>
+    <meta name="description" content="SQLHunter - SQL 注入检测工具完整使用文档">
+    <link rel="icon" type="image/png" href="src-tauri/icons/32x32.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0d0d0d;
+            --bg-sidebar: #0d0d0d;
+            --surface: #1a1a1a;
+            --border: #2a2a2a;
+            --text: #e5e5e5;
+            --text-secondary: #888;
+            --accent: #a78bfa;
+            --accent-hover: #c4b5fd;
+            --logo-brand-color: #a78bfa;
+            --logo-text-color: #e5e5e5;
+            --glow-primary: rgba(167, 139, 250, 0.4);
+            --glow-secondary: rgba(139, 92, 246, 0.3);
+            --neon-purple: #a78bfa;
+            --neon-cyan: #22d3ee;
+        }
+
+        [data-theme="light"] {
+            --bg: #ffffff;
+            --bg-sidebar: #fafafa;
+            --surface: #ffffff;
+            --border: #e5e5e5;
+            --text: #1a1a1a;
+            --text-secondary: #666;
+            --accent: #7c3aed;
+            --accent-hover: #6d28d9;
+            --logo-brand-color: #7c3aed;
+            --logo-text-color: #1a1a1a;
+            --glow-primary: rgba(124, 58, 237, 0.3);
+            --glow-secondary: rgba(124, 58, 237, 0.2);
+        }
+
+        /* 动画关键帧 */
+        @keyframes scanline {
+            0% {
+                transform: translateY(-100%);
+            }
+
+            100% {
+                transform: translateY(100vh);
+            }
+        }
+
+        @keyframes pulse-glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 15px var(--glow-primary);
+            }
+
+            50% {
+                box-shadow: 0 0 25px var(--glow-primary), 0 0 40px var(--glow-secondary);
+            }
+        }
+
+        @keyframes particle-float {
+
+            0%,
+            100% {
+                transform: translate(0, 0);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 0.6;
+            }
+
+            90% {
+                opacity: 0.6;
+            }
+
+            100% {
+                transform: translate(50px, -100vh);
+                opacity: 0;
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            font-size: 15px;
+            transition: background 0.2s, color 0.2s;
+            overflow-x: hidden;
+        }
+
+        /* 扫描线效果 */
+        .scanline-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--neon-purple), transparent);
+            animation: scanline 10s linear infinite;
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 0.25;
+        }
+
+        /* 微粒子背景 */
+        .particles-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: particle-float 20s linear infinite;
+            opacity: 0;
+        }
+
+        [data-theme="light"] .scanline-overlay {
+            opacity: 0.1;
+        }
+
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover {
+            color: var(--accent-hover);
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            overflow-y: auto;
+            padding: 20px 0;
+            transition: background 0.2s;
+        }
+
+        .sidebar-header {
+            padding: 0 24px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .sidebar-logo img {
+            width: 28px;
+            height: 28px;
+        }
+
+        .sidebar-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: var(--surface);
+            color: var(--text);
+            border-color: var(--text-secondary);
+        }
+
+        .back-link {
+            display: block;
+            padding: 12px 24px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        .back-link:hover {
+            color: var(--accent);
+        }
+
+        .nav-group {
+            margin-bottom: 8px;
+        }
+
+        .nav-group-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        .nav-group-header:hover {
+            background: var(--surface);
+        }
+
+        .nav-group-header .arrow {
+            font-size: 12px;
+            color: var(--text-secondary);
+            transition: transform 0.2s;
+        }
+
+        .nav-group.collapsed .arrow {
+            transform: rotate(-90deg);
+        }
+
+        .nav-group.collapsed .nav-items {
+            display: none;
+        }
+
+        .nav-items {
+            padding: 0;
+        }
+
+        .nav-item {
+            display: block;
+            padding: 10px 24px 10px 40px;
+            font-size: 14px;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            border-left: 2px solid transparent;
+        }
+
+        .nav-item:hover {
+            color: var(--text);
+            background: var(--surface);
+        }
+
+        .nav-item.active {
+            color: var(--accent);
+            border-left-color: var(--accent);
+            background: rgba(167, 139, 250, 0.1);
+        }
+
+        /* Main Content */
+        .main {
+            flex: 1;
+            margin-left: 280px;
+            padding: 40px 60px;
+            max-width: 1000px;
+        }
+
+        .page-title {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--text);
+        }
+
+        .page-desc {
+            font-size: 17px;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            line-height: 1.8;
+        }
+
+        .content-section {
+            margin-bottom: 48px;
+        }
+
+        .content-section h2 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .content-section h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 32px 0 16px;
+        }
+
+        .content-section h4 {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 24px 0 12px;
+        }
+
+        .content-section p {
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+        }
+
+        .content-section ul,
+        .content-section ol {
+            margin: 16px 0;
+            padding-left: 24px;
+        }
+
+        .content-section li {
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+        }
+
+        .content-section li strong {
+            color: var(--text);
+        }
+
+        .content-section code {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 13px;
+            color: var(--accent);
+        }
+
+        .code-block {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 16px 0;
+            overflow-x: auto;
+        }
+
+        .code-block code {
+            background: transparent;
+            border: none;
+            padding: 0;
+            font-size: 14px;
+            color: var(--text);
+            display: block;
+            white-space: pre;
+        }
+
+        .tip-box {
+            background: rgba(167, 139, 250, 0.1);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 16px 0;
+        }
+
+        .tip-box p {
+            margin: 0;
+            color: var(--text);
+        }
+
+        .warning-box {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 16px 0;
+        }
+
+        .warning-box p {
+            margin: 0;
+            color: var(--text);
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin: 24px 0;
+        }
+
+        .feature-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .feature-card h4 {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 0 0 8px 0;
+            color: var(--text);
+        }
+
+        .feature-card p {
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .screenshot {
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            margin: 24px 0;
+        }
+
+        .screenshot img {
+            width: 100%;
+            display: block;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--surface);
+            font-weight: 600;
+        }
+
+        td {
+            color: var(--text-secondary);
+        }
+
+        .download-cards {
+            display: flex;
+            gap: 16px;
+            margin: 24px 0;
+        }
+
+        .download-card {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            text-align: center;
+            transition: border-color 0.2s;
+        }
+
+        .download-card:hover {
+            border-color: var(--accent);
+        }
+
+        .download-card h4 {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0 0 4px 0;
+            color: var(--text);
+        }
+
+        .download-card p {
+            font-size: 13px;
+            margin: 0;
+        }
+
+        @media (max-width: 900px) {
+            .sidebar {
+                display: none;
+            }
+
+            .main {
+                margin-left: 0;
+                padding: 24px;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .download-cards {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 科技特效层 -->
+    <div class="particles-bg" id="particles"></div>
+    <div class="scanline-overlay"></div>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <a href="index.html" class="sidebar-logo">
+                    <img src="logo.png" alt="SQLHunter" style="height: 72px; width: auto;">
+                </a>
+                <div class="sidebar-actions">
+                    <button class="icon-btn" id="themeToggle" title="切换主题">☀</button>
+                    <button class="icon-btn" id="langToggle" title="切换语言">EN</button>
+                </div>
+            </div>
+
+            <a href="index.html" class="back-link" data-i18n="back">← 返回首页</a>
+
+            <nav>
+                <div class="nav-group">
+                    <div class="nav-group-header" onclick="toggleGroup(this)">
+                        <span data-i18n="nav.intro">简介</span>
+                        <span class="arrow">▼</span>
+                    </div>
+                    <div class="nav-items">
+                        <a href="#welcome" class="nav-item active" data-i18n="nav.welcome">欢迎使用</a>
+                        <a href="#changelog" class="nav-item" data-i18n="nav.changelog">更新日志</a>
+                        <a href="#install" class="nav-item" data-i18n="nav.install">安装配置</a>
+                        <a href="#quickstart" class="nav-item" data-i18n="nav.quickstart">快速开始</a>
+                    </div>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-group-header" onclick="toggleGroup(this)">
+                        <span data-i18n="nav.scanning">扫描操作</span>
+                        <span class="arrow">▼</span>
+                    </div>
+                    <div class="nav-items">
+                        <a href="#target" class="nav-item" data-i18n="nav.target">目标配置</a>
+                        <a href="#techniques" class="nav-item" data-i18n="nav.techniques">注入技术</a>
+                        <a href="#presets" class="nav-item" data-i18n="nav.presets">扫描预设</a>
+                        <a href="#enumeration" class="nav-item" data-i18n="nav.enumeration">数据枚举</a>
+                        <a href="#results" class="nav-item" data-i18n="nav.results">结果分析</a>
+                    </div>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-group-header" onclick="toggleGroup(this)">
+                        <span data-i18n="nav.proxy">代理管理</span>
+                        <span class="arrow">▼</span>
+                    </div>
+                    <div class="nav-items">
+                        <a href="#proxypool" class="nav-item" data-i18n="nav.proxypool">智能代理池</a>
+                        <a href="#proxysource" class="nav-item" data-i18n="nav.proxysource">代理源管理</a>
+                        <a href="#tor" class="nav-item">Tor 网络</a>
+                        <a href="#proxysettings" class="nav-item" data-i18n="nav.proxysettings">代理设置</a>
+                    </div>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-group-header" onclick="toggleGroup(this)">
+                        <span data-i18n="nav.advanced">高级功能</span>
+                        <span class="arrow">▼</span>
+                    </div>
+                    <div class="nav-items">
+                        <a href="#taskqueue" class="nav-item" data-i18n="nav.taskqueue">任务队列</a>
+                        <a href="#targetmanager" class="nav-item" data-i18n="nav.targetmanager">目标管理器</a>
+                        <a href="#ai" class="nav-item" data-i18n="nav.ai">AI 分析</a>
+                        <a href="#themes" class="nav-item" data-i18n="nav.themes">主题定制</a>
+                        <a href="#shortcuts" class="nav-item" data-i18n="nav.shortcuts">快捷键</a>
+                    </div>
+                </div>
+            </nav>
+        </aside>
+
+        <main class="main">
+            <!-- Welcome -->
+            <section id="welcome">
+                <h1 class="page-title">欢迎使用 SQLHunter</h1>
+                <p class="page-desc">
+                    SQLHunter 是一款基于 sqlmap 的现代化 SQL 注入检测工具。它提供直观的图形界面，
+                    集成智能代理池、Tor 匿名网络和 AI 智能分析功能，让 SQL 注入检测变得简单而强大。
+                    本文档将帮助你快速上手并充分利用所有功能。
+                </p>
+
+                <div class="screenshot">
+                    <img src="screenshots/main-interface.png" alt="SQLHunter 主界面">
+                </div>
+
+                <div class="content-section">
+                    <h2>核心功能</h2>
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <h4>智能扫描引擎</h4>
+                            <p>支持 Boolean、Error、Union、Time-based 等多种注入技术，自动识别数据库类型和后端环境</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>智能代理池</h4>
+                            <p>自动获取和管理代理，支持自动轮换和健康检查，内置 Tor 匿名网络集成</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>可视化配置</h4>
+                            <p>直观的参数配置界面，内置多种扫描预设，告别复杂的命令行参数</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>AI 结果分析</h4>
+                            <p>智能分析扫描结果，可视化数据库结构树，提供漏洞评估和修复建议</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Changelog -->
+            <section id="changelog" class="content-section">
+                <h2>更新日志</h2>
+
+                <h3>v1.0.0 (2026-01-20)</h3>
+                <p><strong>首次发布</strong></p>
+                <ul>
+                    <li>智能扫描引擎，支持多种注入技术</li>
+                    <li>智能代理池，自动获取和轮换代理</li>
+                    <li>Tor 网络集成，一键启动和身份切换</li>
+                    <li>可视化配置面板，支持预设管理</li>
+                    <li>AI 智能分析扫描结果</li>
+                    <li>8 款精美主题</li>
+                    <li>中英双语界面</li>
+                    <li>跨平台支持（Windows、macOS、Linux）</li>
+                </ul>
+            </section>
+
+            <!-- Install -->
+            <section id="install" class="content-section">
+                <h2>安装配置</h2>
+
+                <h3>系统要求</h3>
+                <ul>
+                    <li><strong>操作系统</strong>：Windows 10+、macOS 10.13+、Ubuntu 18.04+</li>
+                    <li><strong>Python</strong>：Python 3.x（用于运行 sqlmap 后端）</li>
+                    <li><strong>sqlmap</strong>：首次启动时可自动安装</li>
+                    <li><strong>Tor</strong>：可选，用于匿名扫描</li>
+                </ul>
+
+                <h3>下载安装</h3>
+                <p>从 GitHub Releases 页面下载适合你系统的安装包：</p>
+                <div class="download-cards">
+                    <a href="https://github.com/Robot0P/SQLHunter/releases" class="download-card">
+                        <h4>Windows</h4>
+                        <p>SQLHunter_x.x.x_x64-setup.exe</p>
+                    </a>
+                    <a href="https://github.com/Robot0P/SQLHunter/releases" class="download-card">
+                        <h4>macOS</h4>
+                        <p>SQLHunter_x.x.x_x64.dmg</p>
+                    </a>
+                    <a href="https://github.com/Robot0P/SQLHunter/releases" class="download-card">
+                        <h4>Linux</h4>
+                        <p>SQLHunter_x.x.x_amd64.deb</p>
+                    </a>
+                </div>
+
+                <h3>环境检测</h3>
+                <p>首次启动时，应用会自动检测依赖环境。打开设置面板可以查看：</p>
+                <ul>
+                    <li><strong>Python 状态</strong>：显示 Python 版本和安装路径</li>
+                    <li><strong>sqlmap 状态</strong>：显示 sqlmap 版本，如未安装可点击「一键修复」</li>
+                    <li><strong>Tor 状态</strong>：显示 Tor 是否已安装和运行状态</li>
+                </ul>
+
+                <div class="tip-box">
+                    <p><strong>提示</strong>：如果 sqlmap 未安装，点击环境检测中的「一键修复」按钮，程序会自动通过 pip 安装 sqlmap。</p>
+                </div>
+            </section>
+
+            <!-- Quick Start -->
+            <section id="quickstart" class="content-section">
+                <h2>快速开始</h2>
+                <p>按照以下三个步骤完成你的第一次 SQL 注入检测：</p>
+
+                <h3>第一步：输入目标 URL</h3>
+                <p>在应用顶部的输入框中填入包含可能存在注入点的目标 URL。URL 应该包含查询参数，例如：</p>
+                <div class="code-block">
+                    <code>http://example.com/page.php?id=1</code>
+                </div>
+                <p>sqlmap 会自动识别 <code>id</code> 参数并尝试进行注入测试。</p>
+
+                <h3>第二步：选择扫描配置</h3>
+                <p>在左侧配置面板中选择扫描参数。对于初学者，建议使用内置预设：</p>
+                <ul>
+                    <li><strong>快速扫描</strong>：使用基本技术快速检测，适合初步测试</li>
+                    <li><strong>深度扫描</strong>：启用所有技术，更高的检测级别和风险级别</li>
+                    <li><strong>WAF 绕过</strong>：针对有 WAF 防护的目标，启用 tamper 脚本</li>
+                </ul>
+
+                <h3>第三步：开始扫描</h3>
+                <p>点击「开始扫描」按钮或使用快捷键 <code>Ctrl/Cmd + Enter</code> 启动扫描。扫描过程中：</p>
+                <ul>
+                    <li>中央终端区域会显示 sqlmap 的实时输出</li>
+                    <li>右侧会显示发现的数据库结构</li>
+                    <li>扫描完成后可查看详细结果和报告</li>
+                </ul>
+
+                <div class="warning-box">
+                    <p><strong>注意</strong>：请确保你有权限对目标进行安全测试。未经授权的测试是违法行为。</p>
+                </div>
+            </section>
+
+            <!-- Target -->
+            <section id="target" class="content-section">
+                <h2>目标配置</h2>
+                <p>SQLHunter 支持多种目标输入方式，满足不同的测试场景。</p>
+
+                <h3>URL 目标</h3>
+                <p>最简单的方式是直接输入包含参数的 URL。sqlmap 会自动识别 URL 中的参数作为注入点：</p>
+                <div class="code-block">
+                    <code>http://target.com/page.php?id=1&amp;name=test</code>
+                </div>
+
+                <h3>POST 数据</h3>
+                <p>对于 POST 请求，你可以在配置面板中填写 POST 数据：</p>
+                <div class="code-block">
+                    <code>username=admin&amp;password=123456</code>
+                </div>
+
+                <h3>完整 HTTP 请求</h3>
+                <p>支持粘贴 Burp Suite、Fiddler 等工具截获的完整 HTTP 请求：</p>
+                <div class="code-block">
+                    <code>POST /login.php HTTP/1.1
+Host: target.com
+Content-Type: application/x-www-form-urlencoded
+Cookie: session=abc123
+
+username=admin&amp;password=123456</code>
+                </div>
+
+                <h3>自定义注入点</h3>
+                <p>使用 <code>*</code> 标记指定注入点位置：</p>
+                <div class="code-block">
+                    <code>http://target.com/page.php?id=1*&amp;name=test</code>
+                </div>
+
+                <h3>Cookie 注入</h3>
+                <p>在配置面板的 Cookie 字段中填入要测试的 Cookie：</p>
+                <div class="code-block">
+                    <code>session=abc123; user_id=1</code>
+                </div>
+            </section>
+
+            <!-- Techniques -->
+            <section id="techniques" class="content-section">
+                <h2>注入技术</h2>
+                <p>SQLHunter 支持 sqlmap 的所有 SQL 注入检测技术。你可以在配置面板中通过复选框选择要使用的技术。</p>
+
+                <table>
+                    <tr>
+                        <th>代码</th>
+                        <th>技术名称</th>
+                        <th>说明</th>
+                    </tr>
+                    <tr>
+                        <td><code>B</code></td>
+                        <td>Boolean-based blind</td>
+                        <td>基于布尔值的盲注。通过比较页面响应差异判断条件真假。适用于大多数情况。</td>
+                    </tr>
+                    <tr>
+                        <td><code>E</code></td>
+                        <td>Error-based</td>
+                        <td>基于错误信息的注入。利用数据库错误信息获取数据。效率高但需要错误回显。</td>
+                    </tr>
+                    <tr>
+                        <td><code>U</code></td>
+                        <td>Union-based</td>
+                        <td>基于 UNION 查询的注入。通过 UNION 合并查询获取数据。效率最高。</td>
+                    </tr>
+                    <tr>
+                        <td><code>S</code></td>
+                        <td>Stacked queries</td>
+                        <td>堆叠查询注入。可以执行多条 SQL 语句。支持写入文件、执行命令等高级操作。</td>
+                    </tr>
+                    <tr>
+                        <td><code>T</code></td>
+                        <td>Time-based blind</td>
+                        <td>基于时间延迟的盲注。通过响应时间判断条件真假。最慢但最可靠。</td>
+                    </tr>
+                    <tr>
+                        <td><code>Q</code></td>
+                        <td>Inline queries</td>
+                        <td>内联查询注入。将查询嵌入到原始查询中。</td>
+                    </tr>
+                </table>
+
+                <h3>检测级别 (Level)</h3>
+                <p>检测级别控制测试的范围和深度。级别越高，测试的参数和位置越多：</p>
+                <ul>
+                    <li><strong>Level 1</strong>：只测试 GET 和 POST 参数（默认）</li>
+                    <li><strong>Level 2</strong>：额外测试 Cookie</li>
+                    <li><strong>Level 3</strong>：额外测试 User-Agent 和 Referer</li>
+                    <li><strong>Level 4</strong>：测试更多的边界情况</li>
+                    <li><strong>Level 5</strong>：最全面的测试，包括更多的 payload 变体</li>
+                </ul>
+
+                <h3>风险级别 (Risk)</h3>
+                <p>风险级别控制允许使用的 payload 类型：</p>
+                <ul>
+                    <li><strong>Risk 1</strong>：只使用无害的测试 payload（默认）</li>
+                    <li><strong>Risk 2</strong>：额外使用重查询时间的 payload</li>
+                    <li><strong>Risk 3</strong>：额外使用基于 OR 的 payload（可能影响数据）</li>
+                </ul>
+            </section>
+
+            <!-- Presets -->
+            <section id="presets" class="content-section">
+                <h2>扫描预设</h2>
+                <p>SQLHunter 内置多种扫描预设，帮助你快速配置常用的扫描策略。</p>
+
+                <h3>内置预设</h3>
+                <ul>
+                    <li>
+                        <strong>快速扫描</strong><br>
+                        Level: 1, Risk: 1, 技术: BEUST<br>
+                        适合初步检测，速度快，误报少
+                    </li>
+                    <li>
+                        <strong>深度扫描</strong><br>
+                        Level: 5, Risk: 3, 技术: BEUSTQ<br>
+                        全面检测，不遗漏任何可能的漏洞
+                    </li>
+                    <li>
+                        <strong>WAF 绕过</strong><br>
+                        启用 tamper 脚本，随机 User-Agent<br>
+                        针对有 WAF 防护的目标
+                    </li>
+                    <li>
+                        <strong>仅检测</strong><br>
+                        只检测是否存在漏洞，不进行数据提取<br>
+                        适合快速评估
+                    </li>
+                </ul>
+
+                <h3>自定义预设</h3>
+                <p>你可以保存当前配置为自定义预设：</p>
+                <ol>
+                    <li>在配置面板中调整好所有参数</li>
+                    <li>点击预设下拉菜单旁边的「保存」按钮</li>
+                    <li>输入预设名称并确认</li>
+                </ol>
+                <p>保存的预设会显示在预设列表中，下次可以一键加载。</p>
+            </section>
+
+            <!-- Enumeration -->
+            <section id="enumeration" class="content-section">
+                <h2>数据枚举</h2>
+                <p>发现注入漏洞后，可以使用枚举功能提取数据库中的数据。</p>
+
+                <h3>枚举选项</h3>
+                <table>
+                    <tr>
+                        <th>选项</th>
+                        <th>说明</th>
+                    </tr>
+                    <tr>
+                        <td>获取数据库</td>
+                        <td>列出所有可访问的数据库名称</td>
+                    </tr>
+                    <tr>
+                        <td>获取表</td>
+                        <td>列出指定数据库中的所有表</td>
+                    </tr>
+                    <tr>
+                        <td>获取列</td>
+                        <td>列出指定表中的所有列</td>
+                    </tr>
+                    <tr>
+                        <td>获取数据</td>
+                        <td>导出指定表的数据内容</td>
+                    </tr>
+                    <tr>
+                        <td>获取用户</td>
+                        <td>列出数据库用户</td>
+                    </tr>
+                    <tr>
+                        <td>获取密码</td>
+                        <td>获取数据库用户的密码哈希</td>
+                    </tr>
+                </table>
+            </section>
+
+            <!-- Results -->
+            <section id="results" class="content-section">
+                <h2>结果分析</h2>
+                <p>扫描完成后，SQLHunter 提供多种方式查看和分析结果。</p>
+
+                <h3>实时输出</h3>
+                <p>中央终端区域显示 sqlmap 的完整输出，包括：</p>
+                <ul>
+                    <li>测试进度和状态</li>
+                    <li>发现的注入点详情</li>
+                    <li>数据库类型和版本</li>
+                    <li>提取的数据内容</li>
+                </ul>
+
+                <h3>数据库结构树</h3>
+                <p>右侧面板以树形结构展示发现的数据库内容：</p>
+                <ul>
+                    <li>数据库列表</li>
+                    <li>每个数据库下的表</li>
+                    <li>每个表的列名和类型</li>
+                </ul>
+
+                <h3>AI 智能分析</h3>
+                <p>配置 API Key 后，可以使用 AI 分析功能：</p>
+                <ul>
+                    <li>自动分析扫描结果</li>
+                    <li>评估漏洞的严重程度</li>
+                    <li>提供修复建议</li>
+                    <li>生成安全报告</li>
+                </ul>
+            </section>
+
+            <!-- Proxy Pool -->
+            <section id="proxypool" class="content-section">
+                <h2>智能代理池</h2>
+                <p>智能代理池可以自动管理代理，避免在扫描过程中被目标封禁 IP。点击右上角的代理池图标打开管理面板。</p>
+
+                <div class="screenshot">
+                    <img src="screenshots/proxy-pool.png" alt="智能代理池">
+                </div>
+
+                <h3>主要功能</h3>
+                <ul>
+                    <li><strong>代理获取</strong>：从配置的代理源自动获取代理</li>
+                    <li><strong>健康检查</strong>：定期检测代理可用性，自动剔除失效代理</li>
+                    <li><strong>自动轮换</strong>：每 N 次请求自动切换代理</li>
+                    <li><strong>手动添加</strong>：支持手动添加自己的代理</li>
+                </ul>
+
+                <h3>使用方法</h3>
+                <ol>
+                    <li>打开代理池面板</li>
+                    <li>在「代理源」标签页添加代理获取源</li>
+                    <li>点击「获取代理」按钮获取代理列表</li>
+                    <li>启用「智能代理池」开关</li>
+                    <li>开始扫描，代理会自动应用</li>
+                </ol>
+            </section>
+
+            <!-- Proxy Source -->
+            <section id="proxysource" class="content-section">
+                <h2>代理源管理</h2>
+                <p>代理源是提供代理列表的 URL 地址。SQLHunter 支持添加多个代理源。</p>
+
+                <h3>添加代理源</h3>
+                <ol>
+                    <li>打开代理池面板，切换到「代理源」标签</li>
+                    <li>点击「添加」按钮</li>
+                    <li>填写代理源名称和 URL</li>
+                    <li>URL 应返回每行一个代理的文本格式</li>
+                </ol>
+
+                <h3>代理格式</h3>
+                <p>代理源返回的代理格式应为：</p>
+                <div class="code-block">
+                    <code>192.168.1.1:8080
+192.168.1.2:3128
+socks5://192.168.1.3:1080</code>
+                </div>
+            </section>
+
+            <!-- Tor -->
+            <section id="tor" class="content-section">
+                <h2>Tor 网络</h2>
+                <p>SQLHunter 集成了 Tor 匿名网络，可以一键启用 Tor 代理进行匿名扫描。</p>
+
+                <div class="screenshot">
+                    <img src="screenshots/tor-network.png" alt="Tor 网络">
+                </div>
+
+                <h3>安装 Tor</h3>
+                <p>使用 Tor 功能前，需要先安装 Tor：</p>
+                <ul>
+                    <li><strong>macOS</strong>：<code>brew install tor</code></li>
+                    <li><strong>Linux</strong>：<code>sudo apt install tor</code></li>
+                    <li><strong>Windows</strong>：下载安装 Tor Expert Bundle</li>
+                </ul>
+
+                <h3>使用 Tor</h3>
+                <ol>
+                    <li>打开代理池面板，切换到「Tor」标签</li>
+                    <li>点击「启动 Tor」按钮</li>
+                    <li>等待 Tor 连接成功，显示出口 IP</li>
+                    <li>开始扫描，流量将通过 Tor 网络</li>
+                </ol>
+
+                <h3>Tor 链路可视化</h3>
+                <p>Tor 标签页会实时显示当前的 Tor 链路信息：</p>
+                <ul>
+                    <li>入口节点及其国家</li>
+                    <li>中继节点及其国家</li>
+                    <li>出口节点及其国家</li>
+                    <li>当前出口 IP 地址</li>
+                </ul>
+
+                <h3>切换身份</h3>
+                <p>点击「切换身份」按钮可以获取新的 Tor 出口 IP，用于：</p>
+                <ul>
+                    <li>更换被封禁的 IP</li>
+                    <li>获取不同地理位置的出口</li>
+                </ul>
+            </section>
+
+            <!-- Proxy Settings -->
+            <section id="proxysettings" class="content-section">
+                <h2>代理设置</h2>
+                <p>在代理池的「设置」标签页可以配置代理相关参数。</p>
+
+                <table>
+                    <tr>
+                        <th>设置项</th>
+                        <th>说明</th>
+                    </tr>
+                    <tr>
+                        <td>启用代理池</td>
+                        <td>开启后扫描时会自动使用代理</td>
+                    </tr>
+                    <tr>
+                        <td>自动轮换</td>
+                        <td>每 N 次请求自动切换到下一个可用代理</td>
+                    </tr>
+                    <tr>
+                        <td>自动验活</td>
+                        <td>每 N 秒自动检查代理可用性</td>
+                    </tr>
+                    <tr>
+                        <td>最大失败次数</td>
+                        <td>代理连续失败该次数后标记为不可用</td>
+                    </tr>
+                    <tr>
+                        <td>代理超时</td>
+                        <td>代理请求的超时时间（毫秒）</td>
+                    </tr>
+                </table>
+            </section>
+
+            <!-- Task Queue -->
+            <section id="taskqueue" class="content-section">
+                <h2>任务队列</h2>
+                <p>任务队列允许你批量添加多个扫描任务，并自动按顺序执行。</p>
+
+                <h3>添加任务</h3>
+                <ol>
+                    <li>配置好目标和扫描参数</li>
+                    <li>点击「添加到队列」按钮</li>
+                    <li>任务会添加到右侧的任务列表</li>
+                </ol>
+
+                <h3>任务管理</h3>
+                <ul>
+                    <li><strong>开始队列</strong>：按顺序执行所有待处理任务</li>
+                    <li><strong>暂停队列</strong>：暂停当前任务执行</li>
+                    <li><strong>删除任务</strong>：从队列中移除任务</li>
+                    <li><strong>重试任务</strong>：重新执行失败的任务</li>
+                </ul>
+            </section>
+
+            <!-- Target Manager -->
+            <section id="targetmanager" class="content-section">
+                <h2>目标管理器</h2>
+                <p>目标管理器帮助你组织和管理多个测试目标。</p>
+
+                <h3>功能</h3>
+                <ul>
+                    <li><strong>添加目标</strong>：保存目标 URL 和相关信息</li>
+                    <li><strong>分组管理</strong>：将目标按项目或类型分组</li>
+                    <li><strong>标签标记</strong>：使用标签对目标进行分类</li>
+                    <li><strong>批量导入</strong>：从文件导入多个目标</li>
+                    <li><strong>快速扫描</strong>：一键对目标发起扫描</li>
+                </ul>
+            </section>
+
+            <!-- AI -->
+            <section id="ai" class="content-section">
+                <h2>AI 分析</h2>
+                <p>SQLHunter 支持集成 AI 大模型来分析扫描结果。</p>
+
+                <h3>配置 API</h3>
+                <ol>
+                    <li>打开设置面板</li>
+                    <li>在 AI 设置中选择服务提供商</li>
+                    <li>填入 API Key</li>
+                    <li>选择要使用的模型</li>
+                </ol>
+
+                <h3>支持的服务</h3>
+                <ul>
+                    <li>OpenAI（GPT-4、GPT-3.5）</li>
+                    <li>Anthropic（Claude）</li>
+                    <li>自定义 API 端点</li>
+                </ul>
+
+                <h3>使用 AI 分析</h3>
+                <p>扫描完成后，点击「AI 分析」按钮，AI 会：</p>
+                <ul>
+                    <li>分析扫描输出中的关键信息</li>
+                    <li>评估漏洞的严重程度</li>
+                    <li>提供详细的漏洞说明</li>
+                    <li>给出修复建议</li>
+                </ul>
+            </section>
+
+            <!-- Themes -->
+            <section id="themes" class="content-section">
+                <h2>主题定制</h2>
+                <p>SQLHunter 内置 8 款精美主题，满足不同的使用偏好。点击右上角的调色板图标切换主题。</p>
+
+                <h3>可用主题</h3>
+                <ul>
+                    <li><strong>Cyberpunk（赛博朋克）</strong> - 霓虹粉紫色调，充满科幻感</li>
+                    <li><strong>Stealth（隐匿）</strong> - 深邃暗色调，适合夜间使用</li>
+                    <li><strong>Matrix（矩阵）</strong> - 经典绿色终端风格</li>
+                    <li><strong>Neon（霓虹）</strong> - 亮丽紫色，充满活力</li>
+                    <li><strong>Light（浅色）</strong> - 明亮简洁，适合日间使用</li>
+                    <li><strong>Midnight（午夜）</strong> - 深蓝夜空色调</li>
+                    <li><strong>Dracula（德古拉）</strong> - 经典的暗色开发者主题</li>
+                    <li><strong>Monokai（莫诺凯）</strong> - 代码编辑器经典配色</li>
+                </ul>
+            </section>
+
+            <!-- Shortcuts -->
+            <section id="shortcuts" class="content-section">
+                <h2>快捷键</h2>
+                <p>SQLHunter 支持以下键盘快捷键，提高操作效率：</p>
+
+                <table>
+                    <tr>
+                        <th>快捷键</th>
+                        <th>功能</th>
+                    </tr>
+                    <tr>
+                        <td><code>Ctrl/Cmd + Enter</code></td>
+                        <td>开始扫描</td>
+                    </tr>
+                    <tr>
+                        <td><code>Ctrl/Cmd + .</code></td>
+                        <td>停止扫描</td>
+                    </tr>
+                    <tr>
+                        <td><code>Ctrl/Cmd + ,</code></td>
+                        <td>打开设置</td>
+                    </tr>
+                    <tr>
+                        <td><code>Ctrl/Cmd + L</code></td>
+                        <td>清除输出</td>
+                    </tr>
+                    <tr>
+                        <td><code>Ctrl/Cmd + S</code></td>
+                        <td>保存配置</td>
+                    </tr>
+                    <tr>
+                        <td><code>Ctrl/Cmd + Q</code></td>
+                        <td>添加到任务队列</td>
+                    </tr>
+                </table>
+            </section>
+
+
+
+        </main>
+    </div>
+
+    <script>
+        // i18n for guide page navigation
+        const i18n = {
+            zh: {
+                'back': '← 返回首页',
+                'nav.intro': '简介',
+                'nav.welcome': '欢迎使用',
+                'nav.changelog': '更新日志',
+                'nav.install': '安装配置',
+                'nav.quickstart': '快速开始',
+                'nav.scanning': '扫描操作',
+                'nav.target': '目标配置',
+                'nav.techniques': '注入技术',
+                'nav.presets': '扫描预设',
+                'nav.enumeration': '数据枚举',
+                'nav.results': '结果分析',
+                'nav.proxy': '代理管理',
+                'nav.proxypool': '智能代理池',
+                'nav.proxysource': '代理源管理',
+                'nav.proxysettings': '代理设置',
+                'nav.advanced': '高级功能',
+                'nav.taskqueue': '任务队列',
+                'nav.targetmanager': '目标管理器',
+                'nav.ai': 'AI 分析',
+                'nav.themes': '主题定制',
+                'nav.shortcuts': '快捷键'
+            },
+            en: {
+                'back': '← Back to Home',
+                'nav.intro': 'Introduction',
+                'nav.welcome': 'Welcome',
+                'nav.install': 'Installation',
+                'nav.quickstart': 'Quick Start',
+                'nav.scanning': 'Scanning',
+                'nav.target': 'Target Config',
+                'nav.techniques': 'Techniques',
+                'nav.presets': 'Presets',
+                'nav.enumeration': 'Enumeration',
+                'nav.results': 'Results',
+                'nav.proxy': 'Proxy',
+                'nav.proxypool': 'Proxy Pool',
+                'nav.proxysource': 'Proxy Sources',
+                'nav.proxysettings': 'Proxy Settings',
+                'nav.advanced': 'Advanced',
+                'nav.taskqueue': 'Task Queue',
+                'nav.targetmanager': 'Target Manager',
+                'nav.ai': 'AI Analysis',
+                'nav.themes': 'Themes',
+                'nav.shortcuts': 'Shortcuts'
+            }
+        };
+
+        let currentLang = localStorage.getItem('lang') || 'zh';
+        let currentTheme = localStorage.getItem('theme') || 'dark';
+
+        function toggleGroup(header) {
+            header.parentElement.classList.toggle('collapsed');
+        }
+
+        function updateLanguage() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[currentLang][key]) {
+                    el.textContent = i18n[currentLang][key];
+                }
+            });
+            document.documentElement.lang = currentLang === 'zh' ? 'zh-CN' : 'en';
+        }
+
+        // Apply saved theme
+        if (currentTheme === 'light') {
+            document.body.setAttribute('data-theme', 'light');
+            document.getElementById('themeToggle').textContent = '☾';
+        }
+
+        // Apply saved language
+        if (currentLang === 'en') {
+            document.getElementById('langToggle').textContent = '中';
+            updateLanguage();
+        }
+
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function () {
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        document.getElementById('themeToggle').addEventListener('click', function () {
+            currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.body.setAttribute('data-theme', currentTheme === 'light' ? 'light' : '');
+            this.textContent = currentTheme === 'dark' ? '☀' : '☾';
+            localStorage.setItem('theme', currentTheme);
+        });
+
+        // Language toggle - redirect to English version
+        document.getElementById('langToggle').addEventListener('click', function () {
+            localStorage.setItem('lang', 'en');
+            window.location.href = 'guide-en.html';
+        });
+
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // 粒子效果生成
+        function createParticles() {
+            const container = document.getElementById('particles');
+            if (!container) return;
+            const particleCount = 20;
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 20 + 's';
+                particle.style.animationDuration = (Math.random() * 15 + 15) + 's';
+                container.appendChild(particle);
+            }
+        }
+
+        createParticles();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQLHunter Documentation</title>
+    <meta name="description" content="SQLHunter - SQL Injection Detection Tool Documentation">
+    <link rel="icon" type="image/png" href="src-tauri/icons/32x32.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0d0d0d;
+            --bg-sidebar: #0d0d0d;
+            --surface: #1a1a1a;
+            --border: #2a2a2a;
+            --text: #e5e5e5;
+            --text-secondary: #888;
+            --accent: #a78bfa;
+            --accent-hover: #c4b5fd;
+            --logo-brand-color: #a78bfa;
+            --logo-text-color: #e5e5e5;
+            --glow-primary: rgba(167, 139, 250, 0.4);
+            --glow-secondary: rgba(139, 92, 246, 0.3);
+            --neon-purple: #a78bfa;
+            --neon-cyan: #22d3ee;
+        }
+
+        [data-theme="light"] {
+            --bg: #ffffff;
+            --bg-sidebar: #fafafa;
+            --surface: #ffffff;
+            --border: #e5e5e5;
+            --text: #1a1a1a;
+            --text-secondary: #666;
+            --accent: #7c3aed;
+            --accent-hover: #6d28d9;
+            --logo-brand-color: #7c3aed;
+            --logo-text-color: #1a1a1a;
+            --glow-primary: rgba(124, 58, 237, 0.3);
+            --glow-secondary: rgba(124, 58, 237, 0.2);
+        }
+
+        /* Animation keyframes */
+        @keyframes scanline {
+            0% {
+                transform: translateY(-100%);
+            }
+
+            100% {
+                transform: translateY(100vh);
+            }
+        }
+
+        @keyframes pulse-glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 15px var(--glow-primary);
+            }
+
+            50% {
+                box-shadow: 0 0 25px var(--glow-primary), 0 0 40px var(--glow-secondary);
+            }
+        }
+
+        @keyframes particle-float {
+
+            0%,
+            100% {
+                transform: translate(0, 0);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 0.6;
+            }
+
+            90% {
+                opacity: 0.6;
+            }
+
+            100% {
+                transform: translate(50px, -100vh);
+                opacity: 0;
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            font-size: 15px;
+            transition: background 0.2s, color 0.2s;
+            overflow-x: hidden;
+        }
+
+        /* Scanline effect */
+        .scanline-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--neon-purple), transparent);
+            animation: scanline 10s linear infinite;
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 0.25;
+        }
+
+        /* Particle background */
+        .particles-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: particle-float 20s linear infinite;
+            opacity: 0;
+        }
+
+        [data-theme="light"] .scanline-overlay {
+            opacity: 0.1;
+        }
+
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover {
+            color: var(--accent-hover);
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            overflow-y: auto;
+            padding: 20px 0;
+            transition: background 0.2s;
+        }
+
+        .sidebar-header {
+            padding: 0 24px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .sidebar-logo img {
+            width: 28px;
+            height: 28px;
+        }
+
+        .sidebar-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: var(--surface);
+            color: var(--text);
+            border-color: var(--text-secondary);
+        }
+
+        .back-link {
+            display: block;
+            padding: 12px 24px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        .back-link:hover {
+            color: var(--accent);
+        }
+
+        .nav-group {
+            margin-bottom: 8px;
+        }
+
+        .nav-group-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        .nav-group-header:hover {
+            background: var(--surface);
+        }
+
+        .nav-group-header .arrow {
+            font-size: 12px;
+            color: var(--text-secondary);
+            transition: transform 0.2s;
+        }
+
+        .nav-group.collapsed .arrow {
+            transform: rotate(-90deg);
+        }
+
+        .nav-group.collapsed .nav-items {
+            display: none;
+        }
+
+        .nav-items {
+            padding: 0;
+        }
+
+        .nav-item {
+            display: block;
+            padding: 10px 24px 10px 40px;
+            font-size: 14px;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            border-left: 2px solid transparent;
+        }
+
+        .nav-item:hover {
+            color: var(--text);
+            background: var(--surface);
+        }
+
+        .nav-item.active {
+            color: var(--accent);
+            border-left-color: var(--accent);
+            background: rgba(167, 139, 250, 0.1);
+        }
+
+        .main {
+            flex: 1;
+            margin-left: 280px;
+            padding: 40px 60px;
+            max-width: 1000px;
+        }
+
+        .page-title {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--text);
+        }
+
+        .page-desc {
+            font-size: 17px;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            line-height: 1.8;
+        }
+
+        .content-section {
+            margin-bottom: 48px;
+        }
+
+        .content-section h2 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .content-section h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 32px 0 16px;
+        }
+
+        .content-section h4 {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 24px 0 12px;
+        }
+
+        .content-section p {
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+        }
+
+        .content-section ul,
+        .content-section ol {
+            margin: 16px 0;
+            padding-left: 24px;
+        }
+
+        .content-section li {
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+        }
+
+        .content-section li strong {
+            color: var(--text);
+        }
+
+        .content-section code {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 13px;
+            color: var(--accent);
+        }
+
+        .code-block {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 16px 0;
+            overflow-x: auto;
+        }
+
+        .code-block code {
+            background: transparent;
+            border: none;
+            padding: 0;
+            font-size: 14px;
+            color: var(--text);
+            display: block;
+            white-space: pre;
+        }
+
+        .tip-box {
+            background: rgba(167, 139, 250, 0.1);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 16px 0;
+        }
+
+        .tip-box p {
+            margin: 0;
+            color: var(--text);
+        }
+
+        .warning-box {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 16px 0;
+        }
+
+        .warning-box p {
+            margin: 0;
+            color: var(--text);
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin: 24px 0;
+        }
+
+        .feature-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .feature-card h4 {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 0 0 8px 0;
+            color: var(--text);
+        }
+
+        .feature-card p {
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .screenshot {
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            margin: 24px 0;
+        }
+
+        .screenshot img {
+            width: 100%;
+            display: block;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--surface);
+            font-weight: 600;
+        }
+
+        td {
+            color: var(--text-secondary);
+        }
+
+        .download-cards {
+            display: flex;
+            gap: 16px;
+            margin: 24px 0;
+        }
+
+        .download-card {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            text-align: center;
+            transition: border-color 0.2s;
+        }
+
+        .download-card:hover {
+            border-color: var(--accent);
+        }
+
+        .download-card h4 {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0 0 4px 0;
+            color: var(--text);
+        }
+
+        .download-card p {
+            font-size: 13px;
+            margin: 0;
+        }
+
+        @media (max-width: 900px) {
+            .sidebar {
+                display: none;
+            }
+
+            .main {
+                margin-left: 0;
+                padding: 24px;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .download-cards {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Tech effects layer -->
+    <div class="particles-bg" id="particles"></div>
+    <div class="scanline-overlay"></div>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <a href="index.html" class="sidebar-logo">
+                    <img src="logo.png" alt="SQLHunter" style="height: 72px; width: auto;">
+                </a>
+                <div class="sidebar-actions">
+                    <button class="icon-btn" id="themeToggle" title="Toggle Theme">☀</button>
+                    <button class="icon-btn" id="langToggle" title="Switch Language">中</button>
+                </div>
+            </div>
+
+            <a href="index.html" class="back-link">← Back to Home</a>
+
+            <nav>
+                <div class="nav-group">
+                    <div class="nav-group-header" onclick="toggleGroup(this)">
+                        <span>Introduction</span>
+                        <span class="arrow">▼</span>
+                    </div>
+                    <div class="nav-items">
+                        <a href="#welcome" class="nav-item active">Welcome</a>
+                        <a href="#changelog" class="nav-item">Changelog</a>
+                        <a href="#install" class="nav-item">Installation</a>
+                        <a href="#quickstart" class="nav-item">Quick Start</a>
+                    </div>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-group-header" onclick="toggleGroup(this)">
+                        <span>Scanning</span>
+                        <span class="arrow">▼</span>
+                    </div>
+                    <div class="nav-items">
+                        <a href="#target" class="nav-item">Target Config</a>
+                        <a href="#techniques" class="nav-item">Techniques</a>
+                        <a href="#presets" class="nav-item">Presets</a>
+                        <a href="#enumeration" class="nav-item">Enumeration</a>
+                        <a href="#results" class="nav-item">Results</a>
+                    </div>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-group-header" onclick="toggleGroup(this)">
+                        <span>Proxy</span>
+                        <span class="arrow">▼</span>
+                    </div>
+                    <div class="nav-items">
+                        <a href="#proxypool" class="nav-item">Proxy Pool</a>
+                        <a href="#proxysource" class="nav-item">Proxy Sources</a>
+                        <a href="#tor" class="nav-item">Tor Network</a>
+                        <a href="#proxysettings" class="nav-item">Proxy Settings</a>
+                    </div>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-group-header" onclick="toggleGroup(this)">
+                        <span>Advanced</span>
+                        <span class="arrow">▼</span>
+                    </div>
+                    <div class="nav-items">
+                        <a href="#taskqueue" class="nav-item">Task Queue</a>
+                        <a href="#targetmanager" class="nav-item">Target Manager</a>
+                        <a href="#ai" class="nav-item">AI Analysis</a>
+                        <a href="#themes" class="nav-item">Themes</a>
+                        <a href="#shortcuts" class="nav-item">Shortcuts</a>
+                    </div>
+                </div>
+            </nav>
+        </aside>
+
+        <main class="main">
+            <!-- Welcome -->
+            <section id="welcome">
+                <h1 class="page-title">Welcome to SQLHunter</h1>
+                <p class="page-desc">
+                    SQLHunter is a modern SQL injection detection tool based on sqlmap. It provides an intuitive
+                    graphical interface with smart proxy pool, Tor anonymity network, and AI-powered analysis. This
+                    documentation will help you get started quickly.
+                </p>
+
+                <div class="screenshot">
+                    <img src="screenshots/main-interface.png" alt="SQLHunter Main Interface">
+                </div>
+
+                <div class="content-section">
+                    <h2>Core Features</h2>
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <h4>Smart Scanning Engine</h4>
+                            <p>Supports Boolean, Error, Union, Time-based and more injection techniques with auto
+                                database detection</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>Smart Proxy Pool</h4>
+                            <p>Auto-fetch and manage proxies with health checks and rotation. Built-in Tor integration
+                            </p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>Visual Configuration</h4>
+                            <p>Intuitive parameter settings with built-in scan presets. No command-line knowledge
+                                required</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>AI Result Analysis</h4>
+                            <p>Smart scan result analysis with visual database structure and vulnerability assessment
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Changelog -->
+            <section id="changelog" class="content-section">
+                <h2>Changelog</h2>
+
+                <h3>v1.0.0 (2026-01-20)</h3>
+                <p><strong>Initial Release</strong></p>
+                <ul>
+                    <li>Smart scanning engine with multiple injection techniques</li>
+                    <li>Smart proxy pool with auto-fetch and rotation</li>
+                    <li>Tor network integration with one-click start</li>
+                    <li>Visual configuration panel with preset management</li>
+                    <li>AI-powered scan result analysis</li>
+                    <li>8 beautiful themes</li>
+                    <li>Bilingual interface (Chinese/English)</li>
+                    <li>Cross-platform support (Windows, macOS, Linux)</li>
+                </ul>
+            </section>
+
+            <!-- Install -->
+            <section id="install" class="content-section">
+                <h2>Installation</h2>
+
+                <h3>System Requirements</h3>
+                <ul>
+                    <li><strong>Operating System</strong>: Windows 10+, macOS 10.13+, Ubuntu 18.04+</li>
+                    <li><strong>Python</strong>: Python 3.x (for sqlmap backend)</li>
+                    <li><strong>sqlmap</strong>: Auto-installed on first launch</li>
+                    <li><strong>Tor</strong>: Optional, for anonymous scanning</li>
+                </ul>
+
+                <h3>Download</h3>
+                <p>Download the installer for your system from GitHub Releases:</p>
+                <div class="download-cards">
+                    <a href="https://github.com/Robot0P/SQLHunter/releases" class="download-card">
+                        <h4>Windows</h4>
+                        <p>SQLHunter_x.x.x_x64-setup.exe</p>
+                    </a>
+                    <a href="https://github.com/Robot0P/SQLHunter/releases" class="download-card">
+                        <h4>macOS</h4>
+                        <p>SQLHunter_x.x.x_x64.dmg</p>
+                    </a>
+                    <a href="https://github.com/Robot0P/SQLHunter/releases" class="download-card">
+                        <h4>Linux</h4>
+                        <p>SQLHunter_x.x.x_amd64.deb</p>
+                    </a>
+                </div>
+
+                <h3>Environment Check</h3>
+                <p>On first launch, the app will check dependencies. Open Settings to view:</p>
+                <ul>
+                    <li><strong>Python Status</strong>: Shows Python version and path</li>
+                    <li><strong>sqlmap Status</strong>: Shows sqlmap version, click "Auto Fix" if missing</li>
+                    <li><strong>Tor Status</strong>: Shows Tor installation and running status</li>
+                </ul>
+
+                <div class="tip-box">
+                    <p><strong>Tip</strong>: If sqlmap is not installed, click "Auto Fix" in Environment Check to
+                        install via pip automatically.</p>
+                </div>
+            </section>
+
+            <!-- Quick Start -->
+            <section id="quickstart" class="content-section">
+                <h2>Quick Start</h2>
+                <p>Complete your first SQL injection scan in 3 steps:</p>
+
+                <h3>Step 1: Enter Target URL</h3>
+                <p>Enter a URL with potential injection points in the input field:</p>
+                <div class="code-block">
+                    <code>http://example.com/page.php?id=1</code>
+                </div>
+                <p>sqlmap will automatically detect the <code>id</code> parameter for injection testing.</p>
+
+                <h3>Step 2: Choose Scan Configuration</h3>
+                <p>Select scan parameters in the left panel. For beginners, use built-in presets:</p>
+                <ul>
+                    <li><strong>Quick Scan</strong>: Fast detection with basic techniques</li>
+                    <li><strong>Deep Scan</strong>: Comprehensive testing with all techniques</li>
+                    <li><strong>WAF Bypass</strong>: For targets with WAF protection, enables tamper scripts</li>
+                </ul>
+
+                <h3>Step 3: Start Scan</h3>
+                <p>Click "Start Scan" or press <code>Ctrl/Cmd + Enter</code>. During scanning:</p>
+                <ul>
+                    <li>Center terminal shows real-time sqlmap output</li>
+                    <li>Right panel displays discovered database structure</li>
+                    <li>View detailed results after completion</li>
+                </ul>
+
+                <div class="warning-box">
+                    <p><strong>Warning</strong>: Ensure you have authorization to test the target. Unauthorized testing
+                        is illegal.</p>
+                </div>
+            </section>
+
+            <!-- Target -->
+            <section id="target" class="content-section">
+                <h2>Target Configuration</h2>
+                <p>SQLHunter supports multiple target input methods:</p>
+
+                <h3>URL Target</h3>
+                <p>Enter a URL with parameters. sqlmap auto-detects parameters as injection points:</p>
+                <div class="code-block">
+                    <code>http://target.com/page.php?id=1&amp;name=test</code>
+                </div>
+
+                <h3>POST Data</h3>
+                <p>For POST requests, fill in POST data in the config panel:</p>
+                <div class="code-block">
+                    <code>username=admin&amp;password=123456</code>
+                </div>
+
+                <h3>Full HTTP Request</h3>
+                <p>Paste complete HTTP requests from Burp Suite, Fiddler, etc:</p>
+                <div class="code-block">
+                    <code>POST /login.php HTTP/1.1
+Host: target.com
+Content-Type: application/x-www-form-urlencoded
+Cookie: session=abc123
+
+username=admin&amp;password=123456</code>
+                </div>
+
+                <h3>Custom Injection Point</h3>
+                <p>Use <code>*</code> marker to specify injection points:</p>
+                <div class="code-block">
+                    <code>http://target.com/page.php?id=1*&amp;name=test</code>
+                </div>
+            </section>
+
+            <!-- Techniques -->
+            <section id="techniques" class="content-section">
+                <h2>Injection Techniques</h2>
+                <p>SQLHunter supports all sqlmap injection techniques. Select via checkboxes in the config panel:</p>
+
+                <table>
+                    <tr>
+                        <th>Code</th>
+                        <th>Technique</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td><code>B</code></td>
+                        <td>Boolean-based blind</td>
+                        <td>Compares page responses to determine true/false conditions</td>
+                    </tr>
+                    <tr>
+                        <td><code>E</code></td>
+                        <td>Error-based</td>
+                        <td>Extracts data from database error messages</td>
+                    </tr>
+                    <tr>
+                        <td><code>U</code></td>
+                        <td>Union-based</td>
+                        <td>Uses UNION queries to extract data. Most efficient</td>
+                    </tr>
+                    <tr>
+                        <td><code>S</code></td>
+                        <td>Stacked queries</td>
+                        <td>Executes multiple SQL statements. Enables file writing, command execution</td>
+                    </tr>
+                    <tr>
+                        <td><code>T</code></td>
+                        <td>Time-based blind</td>
+                        <td>Uses time delays to infer data. Slowest but most reliable</td>
+                    </tr>
+                    <tr>
+                        <td><code>Q</code></td>
+                        <td>Inline queries</td>
+                        <td>Embeds queries within the original query</td>
+                    </tr>
+                </table>
+
+                <h3>Detection Level</h3>
+                <p>Higher levels test more parameters and locations:</p>
+                <ul>
+                    <li><strong>Level 1</strong>: Tests GET and POST parameters (default)</li>
+                    <li><strong>Level 2</strong>: Also tests Cookie</li>
+                    <li><strong>Level 3</strong>: Also tests User-Agent and Referer</li>
+                    <li><strong>Level 4</strong>: Tests more edge cases</li>
+                    <li><strong>Level 5</strong>: Most comprehensive, includes payload variants</li>
+                </ul>
+
+                <h3>Risk Level</h3>
+                <p>Controls payload types:</p>
+                <ul>
+                    <li><strong>Risk 1</strong>: Harmless test payloads only (default)</li>
+                    <li><strong>Risk 2</strong>: Also uses heavy time-based payloads</li>
+                    <li><strong>Risk 3</strong>: Also uses OR-based payloads (may affect data)</li>
+                </ul>
+            </section>
+
+            <!-- Presets -->
+            <section id="presets" class="content-section">
+                <h2>Scan Presets</h2>
+                <p>SQLHunter includes built-in presets for common scan strategies:</p>
+
+                <h3>Built-in Presets</h3>
+                <ul>
+                    <li><strong>Quick Scan</strong>: Level 1, Risk 1, Techniques: BEUST<br>Fast detection with low false
+                        positives</li>
+                    <li><strong>Deep Scan</strong>: Level 5, Risk 3, Techniques: BEUSTQ<br>Comprehensive, doesn't miss
+                        any potential vulnerabilities</li>
+                    <li><strong>WAF Bypass</strong>: Enables tamper scripts, random User-Agent<br>For targets with WAF
+                        protection</li>
+                    <li><strong>Detection Only</strong>: Only checks for vulnerabilities, no data extraction<br>For
+                        quick assessment</li>
+                </ul>
+
+                <h3>Custom Presets</h3>
+                <p>Save current config as custom preset:</p>
+                <ol>
+                    <li>Adjust all parameters in config panel</li>
+                    <li>Click "Save" button next to preset dropdown</li>
+                    <li>Enter preset name and confirm</li>
+                </ol>
+            </section>
+
+            <!-- Enumeration -->
+            <section id="enumeration" class="content-section">
+                <h2>Data Enumeration</h2>
+                <p>After finding injection vulnerabilities, use enumeration to extract data:</p>
+
+                <h3>Enumeration Options</h3>
+                <table>
+                    <tr>
+                        <th>Option</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td>Get Databases</td>
+                        <td>List all accessible database names</td>
+                    </tr>
+                    <tr>
+                        <td>Get Tables</td>
+                        <td>List all tables in specified database</td>
+                    </tr>
+                    <tr>
+                        <td>Get Columns</td>
+                        <td>List all columns in specified table</td>
+                    </tr>
+                    <tr>
+                        <td>Get Data</td>
+                        <td>Export data from specified table</td>
+                    </tr>
+                    <tr>
+                        <td>Get Users</td>
+                        <td>List database users</td>
+                    </tr>
+                    <tr>
+                        <td>Get Passwords</td>
+                        <td>Get password hashes of database users</td>
+                    </tr>
+                </table>
+            </section>
+
+            <!-- Results -->
+            <section id="results" class="content-section">
+                <h2>Result Analysis</h2>
+                <p>SQLHunter provides multiple ways to view and analyze results:</p>
+
+                <h3>Real-time Output</h3>
+                <p>Center terminal displays complete sqlmap output including:</p>
+                <ul>
+                    <li>Test progress and status</li>
+                    <li>Discovered injection point details</li>
+                    <li>Database type and version</li>
+                    <li>Extracted data</li>
+                </ul>
+
+                <h3>Database Structure Tree</h3>
+                <p>Right panel shows discovered database content as a tree:</p>
+                <ul>
+                    <li>Database list</li>
+                    <li>Tables under each database</li>
+                    <li>Column names and types</li>
+                </ul>
+
+                <h3>AI Smart Analysis</h3>
+                <p>After configuring API Key, use AI analysis:</p>
+                <ul>
+                    <li>Auto-analyze scan results</li>
+                    <li>Assess vulnerability severity</li>
+                    <li>Provide fix recommendations</li>
+                    <li>Generate security reports</li>
+                </ul>
+            </section>
+
+            <!-- Proxy Pool -->
+            <section id="proxypool" class="content-section">
+                <h2>Smart Proxy Pool</h2>
+                <p>The proxy pool manages proxies automatically to avoid IP blocking. Click the proxy icon to open the
+                    panel.</p>
+
+                <div class="screenshot">
+                    <img src="screenshots/proxy-pool.png" alt="Smart Proxy Pool">
+                </div>
+
+                <h3>Features</h3>
+                <ul>
+                    <li><strong>Proxy Fetching</strong>: Auto-fetch proxies from configured sources</li>
+                    <li><strong>Health Check</strong>: Periodically checks proxy availability</li>
+                    <li><strong>Auto Rotation</strong>: Switches proxies every N requests</li>
+                    <li><strong>Manual Add</strong>: Add your own proxies</li>
+                </ul>
+
+                <h3>Usage</h3>
+                <ol>
+                    <li>Open proxy pool panel</li>
+                    <li>Add proxy sources in "Sources" tab</li>
+                    <li>Click "Fetch Proxies" to get proxy list</li>
+                    <li>Enable "Smart Proxy Pool" toggle</li>
+                    <li>Start scanning, proxies are applied automatically</li>
+                </ol>
+            </section>
+
+            <!-- Proxy Source -->
+            <section id="proxysource" class="content-section">
+                <h2>Proxy Sources</h2>
+                <p>Proxy sources are URLs that provide proxy lists. SQLHunter supports multiple sources.</p>
+
+                <h3>Adding Sources</h3>
+                <ol>
+                    <li>Open proxy pool panel, switch to "Sources" tab</li>
+                    <li>Click "Add" button</li>
+                    <li>Enter source name and URL</li>
+                    <li>URL should return one proxy per line</li>
+                </ol>
+
+                <h3>Proxy Format</h3>
+                <p>Source should return proxies in format:</p>
+                <div class="code-block">
+                    <code>192.168.1.1:8080
+192.168.1.2:3128
+socks5://192.168.1.3:1080</code>
+                </div>
+            </section>
+
+            <!-- Tor -->
+            <section id="tor" class="content-section">
+                <h2>Tor Network</h2>
+                <p>SQLHunter integrates Tor for one-click anonymous scanning.</p>
+
+                <div class="screenshot">
+                    <img src="screenshots/tor-network.png" alt="Tor Network">
+                </div>
+
+                <h3>Installing Tor</h3>
+                <p>Install Tor before using:</p>
+                <ul>
+                    <li><strong>macOS</strong>: <code>brew install tor</code></li>
+                    <li><strong>Linux</strong>: <code>sudo apt install tor</code></li>
+                    <li><strong>Windows</strong>: Download Tor Expert Bundle</li>
+                </ul>
+
+                <h3>Using Tor</h3>
+                <ol>
+                    <li>Open proxy pool panel, switch to "Tor" tab</li>
+                    <li>Click "Start Tor" button</li>
+                    <li>Wait for connection, shows exit IP</li>
+                    <li>Start scanning, traffic goes through Tor</li>
+                </ol>
+
+                <h3>Tor Circuit Visualization</h3>
+                <p>The Tor tab shows current circuit info:</p>
+                <ul>
+                    <li>Entry node and country</li>
+                    <li>Relay node and country</li>
+                    <li>Exit node and country</li>
+                    <li>Current exit IP address</li>
+                </ul>
+
+                <h3>Switch Identity</h3>
+                <p>Click "New Identity" to get a new Tor exit IP:</p>
+                <ul>
+                    <li>Change blocked IP</li>
+                    <li>Get different geo-location exit</li>
+                </ul>
+            </section>
+
+            <!-- Proxy Settings -->
+            <section id="proxysettings" class="content-section">
+                <h2>Proxy Settings</h2>
+                <p>Configure proxy options in the "Settings" tab:</p>
+
+                <table>
+                    <tr>
+                        <th>Setting</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td>Enable Proxy Pool</td>
+                        <td>Use proxy pool during scanning</td>
+                    </tr>
+                    <tr>
+                        <td>Auto Rotation</td>
+                        <td>Switch to next proxy every N requests</td>
+                    </tr>
+                    <tr>
+                        <td>Auto Health Check</td>
+                        <td>Check proxy availability every N seconds</td>
+                    </tr>
+                    <tr>
+                        <td>Max Failures</td>
+                        <td>Mark proxy as dead after N consecutive failures</td>
+                    </tr>
+                    <tr>
+                        <td>Proxy Timeout</td>
+                        <td>Proxy request timeout in milliseconds</td>
+                    </tr>
+                </table>
+            </section>
+
+            <!-- Task Queue -->
+            <section id="taskqueue" class="content-section">
+                <h2>Task Queue</h2>
+                <p>Queue multiple scan tasks for automatic sequential execution.</p>
+
+                <h3>Adding Tasks</h3>
+                <ol>
+                    <li>Configure target and scan parameters</li>
+                    <li>Click "Add to Queue" button</li>
+                    <li>Task appears in right task list</li>
+                </ol>
+
+                <h3>Task Management</h3>
+                <ul>
+                    <li><strong>Start Queue</strong>: Execute all pending tasks in order</li>
+                    <li><strong>Pause Queue</strong>: Pause current execution</li>
+                    <li><strong>Delete Task</strong>: Remove task from queue</li>
+                    <li><strong>Retry Task</strong>: Re-run failed tasks</li>
+                </ul>
+            </section>
+
+            <!-- Target Manager -->
+            <section id="targetmanager" class="content-section">
+                <h2>Target Manager</h2>
+                <p>Organize and manage multiple test targets.</p>
+
+                <h3>Features</h3>
+                <ul>
+                    <li><strong>Add Targets</strong>: Save target URL and info</li>
+                    <li><strong>Group Management</strong>: Group targets by project or type</li>
+                    <li><strong>Tag Labels</strong>: Classify targets with tags</li>
+                    <li><strong>Batch Import</strong>: Import multiple targets from file</li>
+                    <li><strong>Quick Scan</strong>: One-click scan target</li>
+                </ul>
+            </section>
+
+            <!-- AI -->
+            <section id="ai" class="content-section">
+                <h2>AI Analysis</h2>
+                <p>SQLHunter supports AI model integration for result analysis.</p>
+
+                <h3>Configure API</h3>
+                <ol>
+                    <li>Open Settings panel</li>
+                    <li>Select provider in AI Settings</li>
+                    <li>Enter API Key</li>
+                    <li>Choose model to use</li>
+                </ol>
+
+                <h3>Supported Services</h3>
+                <ul>
+                    <li>OpenAI (GPT-4, GPT-3.5)</li>
+                    <li>Anthropic (Claude)</li>
+                    <li>Custom API endpoints</li>
+                </ul>
+
+                <h3>Using AI Analysis</h3>
+                <p>After scanning, click "AI Analysis" button. AI will:</p>
+                <ul>
+                    <li>Analyze key info from scan output</li>
+                    <li>Assess vulnerability severity</li>
+                    <li>Provide detailed explanations</li>
+                    <li>Give fix recommendations</li>
+                </ul>
+            </section>
+
+            <!-- Themes -->
+            <section id="themes" class="content-section">
+                <h2>Theme Customization</h2>
+                <p>SQLHunter includes 8 beautiful themes. Click the palette icon to switch:</p>
+
+                <ul>
+                    <li><strong>Cyberpunk</strong> - Neon pink/purple cyberpunk style</li>
+                    <li><strong>Stealth</strong> - Deep dark tones</li>
+                    <li><strong>Matrix</strong> - Classic green terminal style</li>
+                    <li><strong>Neon</strong> - Vibrant purple neon</li>
+                    <li><strong>Light</strong> - Bright clean interface</li>
+                    <li><strong>Midnight</strong> - Deep blue night sky</li>
+                    <li><strong>Dracula</strong> - Classic dark theme</li>
+                    <li><strong>Monokai</strong> - Code editor style</li>
+                </ul>
+            </section>
+
+            <!-- Shortcuts -->
+            <section id="shortcuts" class="content-section">
+                <h2>Keyboard Shortcuts</h2>
+                <p>SQLHunter supports these keyboard shortcuts:</p>
+
+                <table>
+                    <tr>
+                        <th>Shortcut</th>
+                        <th>Action</th>
+                    </tr>
+                    <tr>
+                        <td><code>Ctrl/Cmd + Enter</code></td>
+                        <td>Start Scan</td>
+                    </tr>
+                    <tr>
+                        <td><code>Ctrl/Cmd + .</code></td>
+                        <td>Stop Scan</td>
+                    </tr>
+                    <tr>
+                        <td><code>Ctrl/Cmd + ,</code></td>
+                        <td>Open Settings</td>
+                    </tr>
+                    <tr>
+                        <td><code>Ctrl/Cmd + L</code></td>
+                        <td>Clear Output</td>
+                    </tr>
+                    <tr>
+                        <td><code>Ctrl/Cmd + S</code></td>
+                        <td>Save Config</td>
+                    </tr>
+                    <tr>
+                        <td><code>Ctrl/Cmd + Q</code></td>
+                        <td>Add to Task Queue</td>
+                    </tr>
+                </table>
+            </section>
+
+
+
+        </main>
+    </div>
+
+    <script>
+        function toggleGroup(header) {
+            header.parentElement.classList.toggle('collapsed');
+        }
+
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function () {
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        let currentTheme = localStorage.getItem('theme') || 'dark';
+        if (currentTheme === 'light') {
+            document.body.setAttribute('data-theme', 'light');
+            document.getElementById('themeToggle').textContent = '☾';
+        }
+
+        document.getElementById('themeToggle').addEventListener('click', function () {
+            currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.body.setAttribute('data-theme', currentTheme === 'light' ? 'light' : '');
+            this.textContent = currentTheme === 'dark' ? '☀' : '☾';
+            localStorage.setItem('theme', currentTheme);
+        });
+
+        // Language toggle - redirect to Chinese version
+        document.getElementById('langToggle').addEventListener('click', function () {
+            localStorage.setItem('lang', 'zh');
+            window.location.href = 'guide.html';
+        });
+
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // Particle effect generation
+        function createParticles() {
+            const container = document.getElementById('particles');
+            if (!container) return;
+            const particleCount = 20;
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 20 + 's';
+                particle.style.animationDuration = (Math.random() * 15 + 15) + 's';
+                container.appendChild(particle);
+            }
+        }
+
+        createParticles();
+    </script>
+</body>
+
+</html>
